@@ -5,6 +5,8 @@ from mininet.net import Mininet
 from mininet.cli import CLI
 import json
 
+setup_script = 'script.sh'
+
 class MyTopo(Topo):
     def __init__(self):
         Topo.__init__(self)
@@ -27,5 +29,6 @@ if __name__ == '__main__':
     topo = MyTopo()
     net = Mininet(topo)
     net.start()
+    CLI(net, script=setup_script)
     CLI(net)
     net.stop()
