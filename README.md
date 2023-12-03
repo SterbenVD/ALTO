@@ -25,6 +25,10 @@ The project will be emulated using [Mininet](http://mininet.org/).
 ### Project Deliverables
 
 1. A report describing the project and its implementation.
+2. Setup instructions for the project.
+3. A demo video of the project.
+4. A presentation of the project.
+5. The code for the project.
 
 ### References
 
