@@ -5,7 +5,7 @@ from mininet.net import Mininet
 from mininet.cli import CLI
 import json
 
-setup_script = 'script.sh'
+setup_script = 'setup.sh'
 
 class MyTopo(Topo):
     def __init__(self):
