@@ -41,7 +41,7 @@ def write_http_response(status_code, status_message, data):
 
 # Function to receive file
 
-def receive_file(file_name, file_size, conn):
+def receive_file(file_name, conn):
     global data
     print("Receiving file: " + file_name)
     value = conn.recv(1024).decode()
@@ -158,13 +158,12 @@ def start_server():
         data = data.split('\r\n')
         data = data[-1]
         data = json.loads(data)
-        if data['type'] == "send_file":
-            file_name = data['file_name']
-            file_size = data['file_size']
-            receive_file(file_name, file_size, conn)
-        elif data['type'] == "get_file":
+        if data['type'] == "get_file":
             file_name = data['file_name']
             send_file(file_name, conn)
+        else:
+            print("Invalid request")
+            conn.send("Invalid request".encode())
         conn.close()
         print("Peer disconnected: " + str(addr))
 
@@ -196,7 +195,6 @@ def handle_user():
             if response['message'] == 'No peer found':
                 print(response['message'])
             elif response['message'] == 'Best peer found':
-                pass
                 peer_ip = response['ip']
                 peer_port = response['port']
                 receive_file_from_peer(peer_ip, peer_port, file_name)
