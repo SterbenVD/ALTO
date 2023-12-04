@@ -113,12 +113,10 @@ def find_best_peer(peer):
     best_peer = None
     best_hop_count = sys.maxsize
     for peer_ip in peers:
-        print(peer, peer_ip)
         if peer_ip == peer:
             continue
         try:
-            hop_count = nx.shortest_path_length(graph, source = peer, target = peer_ip) # Fix this
-            print(hop_count)
+            hop_count = nx.shortest_path_length(graph, source = peer, target = peer_ip)
         except:
             hop_count = sys.maxsize
         if hop_count < best_hop_count:
@@ -126,7 +124,9 @@ def find_best_peer(peer):
             best_peer = peer_ip
     peer_lock.release()
     graph_lock.release()
-    return best_peer
+    if best_peer == None:
+        return None, None
+    return best_peer, peers[best_peer]
 
 # # Function to get list of all peers
 
@@ -183,12 +183,14 @@ def handle_client(client_socket, client_address):
             data = json.loads(data)
             if 'ip' not in data:
                 response = write_http_response(400, "Bad Request", {"message": "Missing ip"})
+            elif data['ip'] not in peers:
+                response = write_http_response(404, "Not Found", {"message": "Peer not registered"})
             else:
-                best_peer = find_best_peer(data['ip'])
+                best_peer, best_peer_port = find_best_peer(data['ip'])
                 if best_peer == None:
                     response = write_http_response(404, "Not Found", {"message": "No peer found"})
                 else:
-                    response = write_http_response(200, "OK", {"message": "Best peer found", "ip": best_peer})
+                    response = write_http_response(200, "OK", {"message": "Best peer found", "ip": best_peer, "port": best_peer_port})
         else:
             response = write_http_response(404, "Not Found", {"message": "Invalid URL"})
     else:

@@ -11,7 +11,7 @@ import time
 import threading
 import json
 
-data = {}
+files = {}
 my_ip = ''
 my_port = ''
 server_ip = ''
@@ -37,31 +37,29 @@ def write_http_response(status_code, status_message, data):
     response += json.dumps(data)
     return response.encode()
 
+# Files are just strings in this implementation
+
 # Function to receive file
 
 def receive_file(file_name, file_size, conn):
+    global data
     print("Receiving file: " + file_name)
-    file = open(file_name, 'wb')
-    data = conn.recv(1024)
-    total = len(data)
-    file.write(data)
-    while total < file_size:
-        data = conn.recv(1024)
-        total += len(data)
-        file.write(data)
-    file.close()
+    value = conn.recv(1024).decode()
+    files[file_name] = value
     print("File received: " + file_name)
 
 # Function to send file
 
 def send_file(file_name, conn):
+    global data
     print("Sending file: " + file_name)
-    file = open(file_name, 'rb')
-    data = file.read(1024)
-    while data:
-        conn.send(data)
-        data = file.read(1024)
-    file.close()
+    if file_name not in files:
+        print("File not found")
+        print("Creating file: " + file_name)
+        value = input("Enter file contents: ")
+        files[file_name] = value
+    value = files[file_name]
+    conn.send(value.encode())
     print("File sent: " + file_name)
 
 # Function to send file to peer
@@ -74,10 +72,10 @@ def send_file_to_peer(peer_ip, peer_port, file_name):
 
 # Function to receive file from peer
 
-def receive_file_from_peer(peer_ip, peer_port, file_name, file_size):
+def receive_file_from_peer(peer_ip, peer_port, file_name):
     peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     peer_socket.connect((peer_ip, peer_port))
-    receive_file(file_name, file_size, peer_socket)
+    receive_file(file_name, peer_socket)
     peer_socket.close()
 
 # Function to register with ALTO server
@@ -173,7 +171,6 @@ def start_server():
 # Function to handle a user
 
 def handle_user():
-    global data
     global my_ip
     global my_port
     global server_ip
@@ -182,7 +179,9 @@ def handle_user():
         print("1. Register with ALTO server")
         print("2. Unregister with ALTO server")
         print("3. Get best peer from ALTO server")
-        print("4. Exit")
+        print("4. Create file")
+        print("5. Delete file")
+        print("6. Exit")
         choice = int(input("Enter choice: "))
         if choice == 1:
             response = register_with_server()
@@ -197,14 +196,25 @@ def handle_user():
             if response['message'] == 'No peer found':
                 print(response['message'])
             elif response['message'] == 'Best peer found':
-                peer_ip = response['peer']['ip']
-                peer_port = response['peer']['port']
-                print("Best peer found: " + peer_ip + ":" + str(peer_port))
-                receive_file_from_peer(peer_ip, peer_port, file_name, data[file_name])
+                pass
+                peer_ip = response['ip']
+                peer_port = response['port']
+                receive_file_from_peer(peer_ip, peer_port, file_name)
             else:
                 print(response['message'])
         elif choice == 4:
-            break
+            print("Enter file name: ")
+            file_name = input()
+            print("Enter file contents: ")
+            file_contents = input()
+            files[file_name] = file_contents
+        elif choice == 5:
+            print("Enter file name: ")
+            file_name = input()
+            if file_name in files:
+                del files[file_name]
+            else:
+                print("File not found")
         else:
             print("Invalid choice")
 
