@@ -2,7 +2,7 @@
 # Such a node can: Send/Receive files, Ask for the best peer to download from ALTO server
 # Nodes can also go offline(Does not happen during file transfer) and come back online
 # It uses HTTP protocol for communication
-# To send/receive files, it uses TCP protocol
+# To send/receive files, it uses HTTP protocol
 
 import socket
 import sys
@@ -38,45 +38,6 @@ def write_http_response(status_code, status_message, data):
     return response.encode()
 
 # Files are just strings in this implementation
-
-# Function to receive file
-
-def receive_file(file_name, conn):
-    global data
-    print("Receiving file: " + file_name)
-    value = conn.recv(1024).decode()
-    files[file_name] = value
-    print("File received: " + file_name)
-
-# Function to send file
-
-def send_file(file_name, conn):
-    global data
-    print("Sending file: " + file_name)
-    if file_name not in files:
-        print("File not found")
-        print("Creating file: " + file_name)
-        value = input("Enter file contents: ")
-        files[file_name] = value
-    value = files[file_name]
-    conn.send(value.encode())
-    print("File sent: " + file_name)
-
-# Function to send file to peer
-
-def send_file_to_peer(peer_ip, peer_port, file_name):
-    peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    peer_socket.connect((peer_ip, peer_port))
-    send_file(file_name, peer_socket)
-    peer_socket.close()
-
-# Function to receive file from peer
-
-def receive_file_from_peer(peer_ip, peer_port, file_name):
-    peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    peer_socket.connect((peer_ip, peer_port))
-    receive_file(file_name, peer_socket)
-    peer_socket.close()
 
 # Function to register with ALTO server
 
@@ -160,28 +121,67 @@ def start_server():
         data = json.loads(data)
         if data['type'] == "get_file":
             file_name = data['file_name']
-            send_file(file_name, conn)
+            if file_name in files:
+                value = files[file_name]
+                data = {'message': 'OK', 'file_name': file_name, 'value': value}
+                response = write_http_response(200, 'OK', data)
+                conn.send(response)
+                print("File sent: " + file_name)
+            else:
+                data = {'message': 'File not found'}
+                response = write_http_response(404, 'Not Found', data)
+                conn.send(response)
+                print("File not found: " + file_name)
         else:
             print("Invalid request")
-            conn.send("Invalid request".encode())
+            data = {'message': 'Invalid request'}
+            response = write_http_response(400, 'Bad Request', data)
+            conn.send(response)
+            
         conn.close()
         print("Peer disconnected: " + str(addr))
+        options()
+
+# Function to request file from peer
+
+def request_file_from_peer(peer_ip, peer_port, file_name):
+    peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    peer_socket.connect((peer_ip, peer_port))
+    data = {'type': 'get_file', 'file_name': file_name}
+    request = write_http_request('POST', '/get_file', json.dumps(data))
+    peer_socket.send(request)
+    response = peer_socket.recv(1024).decode()
+    response = response.split('\r\n')
+    response = response[-1]
+    response = json.loads(response)
+    if response['message'] == 'OK':
+        value = response['value']
+        files[file_name] = value
+        print("File received: " + file_name)
+    else:
+        print("File not found: " + file_name)
+    peer_socket.close()
 
 # Function to handle a user
 
+def options():
+    print("1. Register with ALTO server")
+    print("2. Unregister with ALTO server")
+    print("3. Get best peer from ALTO server and download file")
+    print("4. Create file")
+    print("5. Delete file")
+    print("6. List files")
+    print("7. Exit")
+    print("Enter your choice: ")
+    
 def handle_user():
     global my_ip
     global my_port
     global server_ip
     global server_port
     while True:
-        print("1. Register with ALTO server")
-        print("2. Unregister with ALTO server")
-        print("3. Get best peer from ALTO server")
-        print("4. Create file")
-        print("5. Delete file")
-        print("6. Exit")
-        choice = int(input("Enter choice: "))
+        options()
+        choice = int(input())
         if choice == 1:
             response = register_with_server()
             print(response['message'])
@@ -197,7 +197,7 @@ def handle_user():
             elif response['message'] == 'Best peer found':
                 peer_ip = response['ip']
                 peer_port = response['port']
-                receive_file_from_peer(peer_ip, peer_port, file_name)
+                request_file_from_peer(peer_ip, peer_port, file_name)
             else:
                 print(response['message'])
         elif choice == 4:
@@ -213,13 +213,19 @@ def handle_user():
                 del files[file_name]
             else:
                 print("File not found")
+        elif choice == 6:
+            print("Files: ")
+            for file_name in files:
+                print(file_name, files[file_name])
+        elif choice == 7:
+            sys.exit()
         else:
             print("Invalid choice")
 
 # Main function
 
 def main():
-    global data
+    global files
     global my_ip
     global my_port
     global server_ip
@@ -235,9 +241,8 @@ def main():
     # Read my port from argv
     my_port = int(sys.argv[1])
     # Read file data from "../config/data.json"
-    # data_file = open("../config/data.json", 'r')
-    # data = json.load(data_file)
-    # data_file.close()
+    data_file = open("../config/data.json", 'r')
+    files = json.load(data_file)
     # Start user thread
     user_thread = threading.Thread(target=handle_user)
     user_thread.start()
