@@ -1,1 +1,0 @@
-# Makefile for running the entire project

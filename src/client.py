@@ -81,6 +81,59 @@ def receive_file(peer_ip, peer_port, file_name):
 
 # Function to get the best peer to download a file from ALTO server
 
+def register_with_server(server_ip, server_port):
+    # Create a TCP/IP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Connect the socket to the port where the server is listening
+    server_address = (server_ip, server_port)
+    print('connecting to {} port {}'.format(*server_address))
+    sock.connect(server_address)
+    try:
+        # Send request for registration
+        request = {}
+        request['type'] = 'register'
+        request['ip'] = my_ip
+        request['port'] = my_port
+        request = json.dumps(request)
+        sock.sendall(write_http_request("POST", "/register", request))
+        # Receive response from the server
+        response = sock.recv(1024)
+        response = response.decode()
+        print(response)
+        if response == "Registered successfully":
+            return True
+        else:
+            return False
+    finally:
+        print('closing socket')
+        sock.close()
+
+def unregister_with_server(server_ip, server_port):
+    # Create a TCP/IP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Connect the socket to the port where the server is listening
+    server_address = (server_ip, server_port)
+    print('connecting to {} port {}'.format(*server_address))
+    sock.connect(server_address)
+    try:
+        # Send request for unregistration
+        request = {}
+        request['type'] = 'unregister'
+        request['ip'] = my_ip
+        request = json.dumps(request)
+        sock.sendall(write_http_request("POST", "/unregister", request))
+        # Receive response from the server
+        response = sock.recv(1024)
+        response = response.decode()
+        print(response)
+        if response == "Unregistered successfully":
+            return True
+        else:
+            return False
+    finally:
+        print('closing socket')
+        sock.close()
+
 def get_best_peer(file_name):
     print("Getting best peer to download file: " + file_name)
     # Create a TCP socket
@@ -149,6 +202,18 @@ def handle_user():
             file_name = command[1]
             data.append(file_name)
             print("File added: " + file_name)
+        # Else if the command is to register with ALTO server, register with the server
+        elif command[0] == "register":
+            if register_with_server(server_ip, server_port):
+                print("Registered with server")
+            else:
+                print("Error registering with server")
+        # Else if the command is to unregister with ALTO server, unregister with the server
+        elif command[0] == "unregister":
+            if unregister_with_server(server_ip, server_port):
+                print("Unregistered with server")
+            else:
+                print("Error unregistering with server")
         # Else if the command is to download a file, get the best peer from ALTO server and download the file from the peer
         elif command[0] == "download":
             file_name = command[1]
