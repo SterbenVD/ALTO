@@ -133,6 +133,7 @@ def get_cost(peer1, peer2):
     hc = get_hop_count(peer1, peer2)
     bw = get_bandwidth(peer1, peer2)
     delay = get_delay(peer1, peer2)
+    # hc * 100 - bw * 10 + delay * 10
     return -1 # TODO: Calculate cost
     
 # Function to get the best peer for a peer
